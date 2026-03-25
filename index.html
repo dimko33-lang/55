@@ -1,0 +1,761 @@
+cat > /root/projects/skynet/index.html << 'EOF'
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>SKYNET</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #000;
+            overflow: hidden;
+            height: 100vh;
+        }
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.35;
+        }
+        .secret-input {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: transparent;
+            border: none;
+            color: transparent;
+            font-size: 14px;
+            font-family: monospace;
+            width: 80px;
+            padding: 4px;
+            outline: none;
+            caret-color: #a0ffa0;
+            z-index: 2;
+        }
+        .secret-input:focus {
+            border: 1px solid rgba(90,140,90,0.4);
+            background: rgba(0,0,0,0.3);
+            color: #c8e6c8;
+        }
+        .fs-entry-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(90, 140, 90, 0.3);
+            color: #7fb57f;
+            font-size: 18px;
+            width: 36px;
+            height: 36px;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.3;
+            transition: opacity 0.3s;
+        }
+        .fs-entry-btn:hover {
+            opacity: 1;
+            background: rgba(90, 140, 90, 0.2);
+            border-color: rgba(90, 140, 90, 0.6);
+        }
+        .fs-notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #5a8c5a;
+            padding: 15px 25px;
+            border-radius: 4px;
+            color: #7fb57f;
+            font-size: 11px;
+            font-family: monospace;
+            letter-spacing: 2px;
+            text-align: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s;
+            box-shadow: 0 0 20px rgba(90, 140, 90, 0.3);
+        }
+        .fs-notification.show {
+            opacity: 1;
+        }
+        .fs-notification .small {
+            font-size: 8px;
+            color: #5a7a5a;
+            margin-top: 5px;
+            letter-spacing: 1px;
+        }
+        .container {
+            position: relative;
+            z-index: 1;
+            display: none;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 10px 15px;
+            height: 100vh;
+            flex-direction: column;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(90, 140, 90, 0.4);
+            padding: 8px 15px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 10px;
+            min-height: auto;
+        }
+        .title-section h1 {
+            font-size: 22px;
+            font-weight: 500;
+            letter-spacing: 3px;
+            background: linear-gradient(135deg, #7fb57f 0%, #5a8c5a 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .title-section p {
+            font-size: 11px;
+            color: #9fc79f;
+            margin-top: 3px;
+        }
+        .status-badge {
+            background: rgba(0,0,0,0.6);
+            border: 1px solid #5a8c5a;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #c8e6c8;
+        }
+        .status-badge .online {
+            color: #7fb57f;
+            font-weight: bold;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .dashboard {
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            gap: 15px;
+            flex: 1;
+            min-height: 0;
+        }
+        .sidebar {
+            background: rgba(10, 15, 26, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(90, 140, 90, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            height: fit-content;
+            max-height: calc(100vh - 150px);
+            overflow-y: auto;
+        }
+        .stat-card {
+            background: rgba(0,0,0,0.4);
+            border-left: 3px solid #5a8c5a;
+            padding: 8px 10px;
+            margin-bottom: 10px;
+            border-radius: 0 4px 4px 0;
+        }
+        .stat-label {
+            font-size: 7px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: linear-gradient(135deg, #7fb57f 0%, #5a8c5a 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 2px;
+        }
+        .stat-value {
+            font-size: 14px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #7fb57f 0%, #5a8c5a 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-family: monospace;
+        }
+        .model-selector {
+            display: flex;
+            gap: 6px;
+            margin: 12px 0;
+            flex-wrap: wrap;
+        }
+        .model-btn {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(90, 140, 90, 0.4);
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 9px;
+            cursor: pointer;
+            color: #8fbc8f;
+            transition: all 0.2s;
+        }
+        .model-btn.active {
+            background: #5a8c5a;
+            color: #000;
+            border-color: #7fb57f;
+        }
+        .phase-list {
+            margin-top: 12px;
+        }
+        .phase-item {
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(90, 140, 90, 0.15);
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #b8d4b8;
+        }
+        .completed { color: #7fb57f; font-weight: bold; }
+        .in-progress { color: #d4a86a; font-weight: bold; }
+        .pending { color: #6a7a6a; }
+        .chat-area {
+            background: rgba(10, 15, 26, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(90, 140, 90, 0.3);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 100px);
+            min-height: 0;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .message {
+            display: flex;
+            gap: 8px;
+        }
+        .message-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 2px;
+            background: #5a8c5a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            color: #000;
+            flex-shrink: 0;
+        }
+        .message.user .message-avatar {
+            background: #6b8e9b;
+        }
+        .message-content {
+            flex: 1;
+            background: rgba(0,0,0,0.4);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.4;
+            border: 1px solid rgba(90, 140, 90, 0.2);
+            color: #d0e8d0;
+            word-wrap: break-word;
+        }
+        .message.user .message-content {
+            background: rgba(90, 140, 90, 0.08);
+            border-color: rgba(90, 140, 90, 0.3);
+        }
+        .message-time {
+            font-size: 8px;
+            color: #7a9a7a;
+            margin-top: 3px;
+        }
+        .chat-input-area {
+            padding: 10px 12px;
+            border-top: 1px solid rgba(90, 140, 90, 0.3);
+            display: flex;
+            gap: 8px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        #messageInput {
+            flex: 1;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(90, 140, 90, 0.4);
+            padding: 8px 12px;
+            border-radius: 6px;
+            color: #d0e8d0;
+            font-family: monospace;
+            font-size: 12px;
+            outline: none;
+        }
+        #messageInput:focus {
+            border-color: #7fb57f;
+        }
+        button {
+            background: rgba(0,0,0,0.6);
+            border: 1px solid #5a8c5a;
+            padding: 6px 12px;
+            border-radius: 4px;
+            color: #7fb57f;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        button:hover {
+            background: rgba(90,140,90,0.2);
+            border-color: #7fb57f;
+        }
+        /* Мобильная адаптация */
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            .container {
+                padding: 8px;
+            }
+            .sidebar {
+                max-height: none;
+                order: 2;
+            }
+            .chat-area {
+                height: calc(100vh - 250px);
+                order: 1;
+            }
+            .title-section h1 {
+                font-size: 18px;
+                letter-spacing: 2px;
+            }
+            .header {
+                margin-bottom: 10px;
+                padding-bottom: 8px;
+            }
+            .model-selector {
+                gap: 4px;
+            }
+            .model-btn {
+                padding: 3px 6px;
+                font-size: 8px;
+            }
+        }
+        @media (max-width: 480px) {
+            .title-section h1 {
+                font-size: 16px;
+            }
+            .status-badge {
+                font-size: 10px;
+                padding: 4px 8px;
+            }
+            .chat-area {
+                height: calc(100vh - 220px);
+            }
+            .message-content {
+                font-size: 11px;
+            }
+        }
+    </style>
+</head>
+<body>
+<canvas id="matrixCanvas"></canvas>
+<input type="password" id="secretCode" class="secret-input" placeholder="">
+<button class="fs-entry-btn" id="fsEntryBtn" title="Полноэкранный режим">⛶</button>
+<div class="fs-notification" id="fsNotification">
+    <div>СИСТЕМА SKYNET АКТИВИРОВАНА</div>
+    <div class="small">Нажмите ESC для выхода</div>
+</div>
+
+<div class="container" id="mainContainer">
+    <div class="header" style="padding:6px 12px; margin-bottom:8px;">
+        <div class="title-section" id="intelToggle" style="display:flex; flex-direction:column; gap:3px; cursor:pointer;" title="Клик для разведданных">
+            <h1 style="font-size:13px; letter-spacing:2px; margin:0;">SKYNET COMMAND</h1>
+            <div class="model-selector" id="modelSelector" style="gap:3px;">
+                <div class="model-btn" data-model="kimi" title="Moonshot K2.5" style="padding:2px 5px; font-size:8px;">KIMI</div>
+                <div class="model-btn" data-model="groq" title="Llama 3.3" style="padding:2px 5px; font-size:8px;">GROQ</div>
+                <div class="model-btn" data-model="free" title="OpenRouter Nemotron" style="padding:2px 5px; font-size:8px;">OR</div>
+                <div class="model-btn active" data-model="offline" title="Local Offline" style="padding:2px 5px; font-size:8px;">OFF</div>
+            </div>
+        </div>
+        <div id="loadingIndicator" style="display:none; margin-right:10px;">
+            <span style="display:inline-block; width:5px; height:5px; border:1px solid #5a8c5a; border-top-color:#7fb57f; border-radius:50%; animation:spin 1s linear infinite; vertical-align:middle; margin-right:3px;"></span>
+            <span style="font-size:8px; color:#7fb57f; letter-spacing:1px;">THINKING</span>
+        </div>
+        <div class="status-badge" id="fullscreenBtn" title="Клик для полноэкранного режима" style="cursor: pointer; user-select: none; padding:3px 6px; font-size:9px;">
+            <span>SYSTEM: </span><span class="online">ACTIVE</span>
+            <span id="commanderBadge" style="display:none; margin-left:6px; color:#d4a86a; font-size:8px;">👤 COMMANDER</span>
+        </div>
+    </div>
+    <div id="intelPanel" style="display:none; background:rgba(0,20,0,0.95); border:1px solid #5a8c5a; margin:0 12px 10px; padding:12px; font-family:monospace; font-size:10px;">
+        <div style="border-bottom:1px solid #3a5c3a; padding-bottom:6px; margin-bottom:10px; display:flex; justify-content:space-between;">
+            <span style="color:#7fb57f; font-weight:bold;">◊ INTELLIGENCE: OPERATION GARDEN APOCALYPSE</span>
+            <span style="color:#5a8c5a; font-size:9px;" id="intelTime">--:--:--</span>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+            <div>
+                <div style="color:#5a7a5a; margin-bottom:3px;">▸ RECON OPS</div>
+                <div style="color:#7fb57f; font-size:14px; margin-bottom:6px;" id="intelScout">2,341</div>
+                <div style="color:#5a7a5a; margin-bottom:3px;">▸ SYSTEM LOAD</div>
+                <div style="color:#7fb57f; font-size:14px; margin-bottom:6px;" id="intelLoad">0.04</div>
+                <div style="color:#5a7a5a; margin-bottom:3px;">▸ UPTIME</div>
+                <div style="color:#7fb57f; font-size:12px;" id="intelUptime">14d 07h 33m</div>
+            </div>
+            <div>
+                <div style="color:#5a7a5a; margin-bottom:3px;">▸ PERIMETER STATUS</div>
+                <div style="color:#7fb57f; margin-bottom:6px;">SECURE <span style="color:#5a8c5a;">●</span></div>
+                <div style="color:#5a7a5a; margin-bottom:3px;">▸ SENSORS ONLINE</div>
+                <div style="color:#7fb57f; font-size:14px; margin-bottom:6px;">12/12</div>
+                <div style="color:#5a7a5a; margin-bottom:3px;">▸ THREATS BLOCKED</div>
+                <div style="color:#7fb57f; font-size:14px;">0</div>
+            </div>
+            <div>
+                <div style="color:#5a7a5a; margin-bottom:3px;">▸ NEURAL NETWORKS</div>
+                <div style="margin-bottom:6px; font-size:9px;">
+                    <div style="color:#7fb57f;">● KIMI <span style="color:#5a8c5a; float:right;">ONLINE</span></div>
+                    <div style="color:#7fb57f;">● GROQ <span style="color:#5a8c5a; float:right;">ONLINE</span></div>
+                    <div style="color:#7fb57f;">● OR <span style="color:#5a8c5a; float:right;">ONLINE</span></div>
+                    <div style="color:#d4a86a;">● OFF <span style="color:#5a8c5a; float:right;">ACTIVE</span></div>
+                </div>
+                <div style="color:#5a7a5a; margin-bottom:3px;">▸ POWER</div>
+                <div style="color:#7fb57f;">GRID + UPS <span style="color:#5a8c5a;">98%</span></div>
+            </div>
+        </div>
+        <div style="margin-top:10px; border-top:1px solid #3a5c3a; padding-top:8px;">
+            <div style="color:#5a7a5a; margin-bottom:6px;">▸ DEPLOYMENT PHASES</div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <span style="background:#5a8c5a; color:#000; padding:2px 6px; border-radius:2px; font-size:9px;">✓ SURVIVAL</span>
+                <span style="background:#5a8c5a; color:#000; padding:2px 6px; border-radius:2px; font-size:9px;">✓ AUTOMATION</span>
+                <span style="border:1px solid #5a8c5a; color:#7fb57f; padding:2px 6px; border-radius:2px; font-size:9px;">◉ CONTROL</span>
+                <span style="border:1px solid #3a5c3a; color:#5a7a5a; padding:2px 6px; border-radius:2px; font-size:9px;">○ AGENTS</span>
+                <span style="border:1px solid #3a5c3a; color:#5a7a5a; padding:2px 6px; border-radius:2px; font-size:9px;">○ SATLINK</span>
+                <span style="border:1px solid #3a5c3a; color:#5a7a5a; padding:2px 6px; border-radius:2px; font-size:9px;">○ FULL AWAKENING</span>
+            </div>
+        </div>
+        <div style="margin-top:8px; border-top:1px solid #3a5c3a; padding-top:8px; display:flex; justify-content:space-between;">
+            <div>
+                <div style="color:#5a7a5a; margin-bottom:3px;">▸ NEXT MISSION</div>
+                <div style="color:#d4a86a; font-size:10px;">ESTABLISH WIREGUARD UPLINK</div>
+            </div>
+            <div style="color:#5a7a5a; font-size:9px; text-align:right;">
+                COMMAND CENTER POLAND33 // CLASSIFIED<br>
+                CLEARANCE: COMMANDER ONLY
+            </div>
+        </div>
+    </div>
+    <div class="dashboard" style="grid-template-columns:1fr;">
+        <div class="chat-area">
+            <div class="chat-messages" id="chatMessages">
+                <!-- Чистый чат, минимализм -->
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="messageInput" placeholder="Enter command...">
+                <button id="sendBtn">SEND</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const secretInput = document.getElementById('secretCode');
+    const mainContainer = document.getElementById('mainContainer');
+    const API_URL = '/chat';
+    let currentModel = 'offline';
+    let clientId = localStorage.getItem('skynet_client_id') || 'client_' + Math.random().toString(36).substr(2, 9);
+    let isCommander = localStorage.getItem('skynet_commander') === 'true';
+    localStorage.setItem('skynet_client_id', clientId);
+    let sessionToken = localStorage.getItem('skynet_session_token') || '';
+    let isLoggedIn = sessionToken !== '';
+    
+    // Показываем бейдж командира если он авторизован
+    if (isCommander) {
+        document.getElementById('commanderBadge').style.display = 'inline';
+    }
+    
+    // Обработка входа в систему
+    function handleLogin() {
+        const password = secretInput.value.trim();
+        if (!password) return;
+        
+        // Показываем индикатор загрузки
+        document.getElementById('loadingIndicator').style.display = 'inline';
+        
+        // Отправляем запрос на вход
+        fetch('/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                password: password,
+                client_id: clientId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('loadingIndicator').style.display = 'none';
+            if (data.status === 'success') {
+                // Сохраняем токен сессии
+                localStorage.setItem('skynet_session_token', data.session_token);
+                sessionToken = data.session_token;
+                isLoggedIn = true;
+                
+                // Скрываем поле ввода пароля
+                secretInput.style.display = 'none';
+                secretInput.value = '';
+                
+                // Показываем сообщение об успешном входе
+                addMessage('SYSTEM', '🔐 Доступ предоставлен. Добро пожаловать, оператор.', true);
+                
+                // Инициализируем чат после успешного входа
+                initChat();
+            } else {
+                addMessage('SYSTEM', '❌ Неверный пароль. Попробуйте снова.', true);
+                secretInput.value = '';
+                secretInput.focus();
+            }
+        })
+        .catch(error => {
+            document.getElementById('loadingIndicator').style.display = 'none';
+            addMessage('SYSTEM', '❌ Ошибка соединения с сервером.', true);
+            secretInput.value = '';
+            secretInput.focus();
+        });
+    }
+    
+    // Обработчик ввода пароля
+    // Проверка пароля временно отключена
+
+    secretInput.style.display = "none";
+
+    mainContainer.style.display = "flex";
+
+    initChat();
+    
+    // Если уже вошли в систему, скрываем поле ввода и инициализируем чат
+    if (isLoggedIn) {
+        secretInput.style.display = 'none';
+        initChat();
+    } else {
+        // Показываем форму входа
+        document.getElementById('fsEntryBtn').style.display = 'none';
+        document.getElementById('mainContainer').style.display = 'none';
+        secretInput.placeholder = 'Введите пароль для доступа';
+        secretInput.value = '';
+        secretInput.style.display = 'block';
+        secretInput.focus();
+    }
+
+    // Матричный дождь (заметный)
+    const canvas = document.getElementById('matrixCanvas');
+    const ctx = canvas.getContext('2d');
+    let width, height, columns, drops;
+    const SYMBOLS = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
+
+    function resizeCanvas() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+        columns = Math.floor(width / 22);
+        drops = new Array(columns).fill(1);
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    let frame = 0;
+    // Настройки матрицы (бэкап)
+    // Затухание 0.02 = длинный след, 0.08 = короткий след, 1.0 = нет следа
+    const FADE = 0.05; // ВЕРНУТЬ: 0.02 (длинный зеленый), 0.05 (средний), 0.08 (короткий черный)
+    function drawMatrix() {
+        // Затухание - след становится черным
+        ctx.fillStyle = `rgba(0, 0, 0, ${FADE})`;
+        ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = '#2ecc71';
+        ctx.font = '16px monospace';
+        if (frame % 6 === 0) {
+            for (let i = 0; i < drops.length; i++) {
+                const text = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+                const x = i * 22;
+                const y = drops[i] * 22;
+                ctx.fillText(text, x, y);
+                if (y > height && Math.random() > 0.98) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+        frame++;
+        requestAnimationFrame(drawMatrix);
+    }
+    drawMatrix();
+
+    // Проверка пароля
+    // Проверка пароля временно отключена
+
+    secretInput.style.display = "none";
+
+    mainContainer.style.display = "flex";
+
+    initChat();
+
+    // Кнопка fullscreen на экране входа
+    document.getElementById('fsEntryBtn').addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.log('Ошибка fullscreen:', err);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    });
+
+    function addMessage(sender, text, isUser = false) {
+        const messagesDiv = document.getElementById('chatMessages');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${isUser ? 'user' : ''}`;
+        const time = new Date().toLocaleTimeString();
+        const avatar = '';
+        messageDiv.innerHTML = `
+            ${avatar ? `<div class="message-avatar">${avatar}</div>` : ''}
+            <div class="message-content">
+                ${text}
+                <div class="message-time">${time}</div>
+            </div>
+        `;
+        messagesDiv.appendChild(messageDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    async function sendMessage() {
+        const input = document.getElementById('messageInput');
+        const message = input.value.trim();
+        if (!message) return;
+        
+        // Если это кодовое слово pi, показываем как системное сообщение
+        if (message.toLowerCase() === 'pi') {
+            addMessage('SYSTEM', '🔐 Авторизация командира...', true);
+        } else {
+            addMessage('', message, true);
+        }
+        
+        input.value = '';
+        document.getElementById('loadingIndicator').style.display = 'inline';
+        
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: message, model: currentModel, client_id: clientId })
+            });
+            const data = await response.json();
+            
+            // Обновляем статус командира
+            if (data.is_commander !== undefined) {
+                isCommander = data.is_commander;
+                localStorage.setItem('skynet_commander', isCommander);
+                if (isCommander) {
+                    document.getElementById('commanderBadge').style.display = 'inline';
+                }
+            }
+            
+            addMessage('', data.reply || data.error || 'Ответ получен');
+        } catch (error) {
+            addMessage('SYSTEM', 'Ошибка связи с сервером');
+        } finally {
+            document.getElementById('loadingIndicator').style.display = 'none';
+        }
+    }
+
+    // Полноэкранный режим
+    function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(err => {
+                console.log('Ошибка fullscreen:', err);
+            });
+            document.getElementById('fsIndicator').textContent = '⛶';
+        } else {
+            document.exitFullscreen();
+            document.getElementById('fsIndicator').textContent = '⛶';
+        }
+    }
+    
+    document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
+    
+    // Переключение панели разведданных
+    document.getElementById('intelToggle').addEventListener('click', (e) => {
+        // Не срабатывать если клик по кнопкам моделей
+        if (e.target.closest('.model-btn')) return;
+        const panel = document.getElementById('intelPanel');
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        // Обновляем время
+        document.getElementById('intelTime').textContent = new Date().toLocaleTimeString();
+    });
+    
+    // Обновляем индикатор при изменении fullscreen
+    document.addEventListener('fullscreenchange', () => {
+        const fsBtn = document.getElementById('fullscreenBtn');
+        const fsNotification = document.getElementById('fsNotification');
+        if (document.fullscreenElement) {
+            fsBtn.style.background = 'rgba(90, 140, 90, 0.3)';
+            fsBtn.title = 'Клик для выхода из полноэкранного режима';
+            // Показываем уведомление о активации
+            fsNotification.classList.add('show');
+            setTimeout(() => {
+                fsNotification.classList.remove('show');
+            }, 2000);
+        } else {
+            fsBtn.style.background = 'rgba(0,0,0,0.6)';
+            fsBtn.title = 'Клик для полноэкранного режима';
+            fsNotification.classList.remove('show');
+        }
+    });
+
+    function stopMatrix() {
+        if (window.matrixInterval) clearInterval(window.matrixInterval);
+        const canvas = document.getElementById("matrixCanvas");
+        if (canvas) canvas.style.display = "none";
+    }
+    function initChat() {
+        document.getElementById('sendBtn').addEventListener('click', sendMessage);
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+        document.querySelectorAll('.model-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.model-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentModel = btn.dataset.model;
+                // Модель переключена без уведомления в чате
+            });
+        });
+        setInterval(() => {
+            const load = (Math.random() * 0.3).toFixed(2);
+            document.getElementById('systemLoad').innerText = load;
+            document.getElementById('intelLoad').textContent = load;
+            document.getElementById('intelScout').textContent = Math.floor(1800 + Math.random() * 200).toLocaleString();
+        }, 8000);
+    }
+</script>
+</body>
+</html>
+EOF
